@@ -172,3 +172,5 @@ create table domains (
 	domain_id int auto_increment primary key not null,	
 	domain varchar(255)
 ) ENGINE = MYISAM;
+
+ALTER TABLE  `sites` ADD  `codepage` VARCHAR( 40 ) NOT NULL

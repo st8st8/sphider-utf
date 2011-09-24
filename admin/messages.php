@@ -153,7 +153,9 @@ function printHeader($omit, $url, $cl) {
 		$log_msg_txt .= "\n\n";
 	}
 
-	$log_msg_html_1 = "<html><head><LINK REL=STYLESHEET HREF=\"admin.css\" TYPE=\"text/css\"></head>\n";
+	$log_msg_html_1 = "<html><head><LINK REL=STYLESHEET HREF=\"admin.css\" TYPE=\"text/css\"><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"></head>\n";
+	        
+
 	$log_msg_html_1 .= "<body style=\"font-family:Verdana, Arial; font-size:12px\">";
 	
 	$log_msg_html_link = "[Back to <a href=\"admin.php\">admin</a>]";

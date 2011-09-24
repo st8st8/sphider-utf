@@ -48,6 +48,8 @@ include "$template_dir/$template/header.html";
 include "$language_dir/$language-language.php";
 
 
+$mysqli_conn->query("SET NAMES 'utf8'");
+
 if ($type != "or" && $type != "and" && $type != "phrase") { 
 	$type = "and";
 }
@@ -100,7 +102,7 @@ function getmicrotime(){
 
 
 function poweredby () {
-	global $sph_messages;
+	global $mysqli_conn, $sph_messages;
     //If you want to remove this, please donate to the project at http://www.sphider.eu/donate.php
     print $sph_messages['Powered by'];?>  <a href="http://www.sphider.eu/"><img src="sphider-logo.png" border="0" style="vertical-align: middle" alt="Sphider"></a>
 
@@ -109,12 +111,12 @@ function poweredby () {
 
 
 function saveToLog ($query, $elapsed, $results) {
-        global $mysql_table_prefix;
+        global $mysqli_conn, $mysql_table_prefix;
     if ($results =="") {
         $results = 0;
     }
     $query =  "insert into ".$mysql_table_prefix."query_log (query, time, elapsed, results) values ('$query', now(), '$elapsed', '$results')";
-	mysql_query($query);
+	$mysqli_conn->query($query);
                     
 	echo mysql_error();
                         

@@ -1,6 +1,6 @@
 <?php 
 function getFileContents($url) {
-	global $user_agent;
+	global $mysqli_conn, $user_agent;
 	$urlparts = parse_url($url);
 	$path = $urlparts['path'];
 	$host = $urlparts['host'];
@@ -69,7 +69,7 @@ function getFileContents($url) {
 check if file is available and in readable form
 */
 function url_status($url) {
-	global $user_agent, $index_pdf, $index_doc, $index_xls, $index_ppt;
+	global $mysqli_conn, $user_agent, $index_pdf, $index_doc, $index_xls, $index_ppt;
 	$urlparts = parse_url($url);
 	$path = $urlparts['path'];
 	$host = $urlparts['host'];
@@ -183,7 +183,7 @@ function url_status($url) {
 Read robots.txt file in the server, to find any disallowed files/folders
 */
 function check_robot_txt($url) {
-	global $user_agent;
+	global $mysqli_conn, $user_agent;
 	$urlparts = parse_url($url);
 	$url = 'http://'.$urlparts['host']."/robots.txt";
 
@@ -318,10 +318,10 @@ function get_links($file, $url, $can_leave_domain, $base) {
 Function to build a unique word array from the text of a webpage, together with the count of each word 
 */
 function unique_array($arr) {
-	global $min_word_length;
-	global $common;
-	global $word_upper_bound;
-	global $index_numbers, $stem_words;
+	global $mysqli_conn, $min_word_length;
+	global $mysqli_conn, $common;
+	global $mysqli_conn, $word_upper_bound;
+	global $mysqli_conn, $index_numbers, $stem_words;
 	
 	if ($stem_words == 1) {
 		$newarr = Array();
@@ -378,7 +378,7 @@ function unique_array($arr) {
 Checks if url is legal, relative to the main url.
 */
 function url_purify($url, $parent_url, $can_leave_domain) {
-	global $ext, $mainurl, $apache_indexes, $strip_sessids;
+	global $mysqli_conn, $ext, $mainurl, $apache_indexes, $strip_sessids;
 
 
 
@@ -478,38 +478,111 @@ function url_purify($url, $parent_url, $can_leave_domain) {
 }
 
 function save_keywords($wordarray, $link_id, $domain) {
-	global $mysql_table_prefix, $all_keywords;
+	global $mysqli_conn, $mysql_table_prefix, $all_keywords,$debug,$mysqli_conn;	
 	reset($wordarray);
 	while ($thisword = each($wordarray)) {
-		$word = $thisword[1][1];
-		$wordmd5 = substr(md5($word), 0, 1);
+		$word = $thisword[1][1];		
+		if ($debug==2) {
+			echo $word."=".mb_detect_encoding($word)."-".md5($word)."-".mb_substr(md5($word), 0, 1)."<br>";
+		}
+		$wordmd5 = mb_substr(md5($word), 0, 1);
 		$weight = $thisword[1][2];
-		if (strlen($word)<= 30) {
+		if (mb_strlen($word)<= 30) {
 			$keyword_id = $all_keywords[$word];
 			if ($keyword_id  == "") {
-                mysql_query("insert into ".$mysql_table_prefix."keywords (keyword) values ('$word')");
-				if (mysql_errno() == 1062) { 
-					$result = mysql_query("select keyword_ID from ".$mysql_table_prefix."keywords where keyword='$word'");
-					echo mysql_error();
-					$row = mysql_fetch_row($result);
+
+ 
+
+//		echo "insert into ".$mysql_table_prefix."keywords (keyword) values ('$word')"."<br>";		
+//		echo "sql<br>";
+//		echo "insert into ".$mysql_table_prefix."keywords (keyword) values ('$word');"."<br>";
+                $insert_qry = "insert into ".$mysql_table_prefix."keywords (keyword) values ('$word')";
+                $mysqli_conn->query($insert_qry);
+
+//		echo mysql_ping();
+		if (!$mysqli_conn->ping())
+		{
+			$mysqli_conn=MySQLi_conn();			
+		}
+		$keyword_id = $mysqli_conn->insert_id;
+
+		if ($keyword_id==0)
+		{
+			die("keyword_id=0 it seems somthing bad happend when inserting in db! ($insert_qry)");
+		}
+
+				/*if (mysql_errno() == 1062) { 
+//					echo "select keyword_ID from ".$mysql_table_prefix."keywords where keyword='$word'";
+					$result = $mysqli_conn->query("select keyword_ID from ".$mysql_table_prefix."keywords where keyword='$word'");
+					echo $mysqli_conn->error;
+					$row = $result->fetch_row();
 					$keyword_id = $row[0];
 				} else{
-				$keyword_id = mysql_insert_id();
 				$all_keywords[$word] = $keyword_id;
-				echo mysql_error();
+				echo $mysqli_conn->error;
+				} 
+				*/
+				$keyword_id = $mysqli_conn->insert_id;
+//				echo $keyword_id;
+				$all_keywords[$word] = $keyword_id;
+				echo $mysqli_conn->error;
+
 			} 
-			} 
-			$inserts[$wordmd5] .= ",($link_id, $keyword_id, $weight, $domain)"; 
+			$inserts[$wordmd5] .= "|$link_id, $keyword_id, $weight, $domain"; 
 		}
 	}
+//	print_r($inserts);
+
+	mysqli_autocommit($link, false);
 
 	for ($i=0;$i<=15; $i++) {
 		$char = dechex($i);
 		$values= substr($inserts[$char], 1);
 		if ($values!="") {
-			$query = "insert into ".$mysql_table_prefix."link_keyword$char (link_id, keyword_id, weight, domain) values $values";
-			mysql_query($query);
-			echo mysql_error();
+			$tmp_val = explode("|",$values);
+
+//			print_r($tmp_val);
+//			echo "<hr>";
+			$j=1;
+			$vals="";
+			$query="";
+			foreach ($tmp_val as $vl)
+			{
+				if ( ($j>50) || ($j>=sizeof($tmp_val)) )		
+				{				
+					$vals.="(".$vl.")";
+
+					$query .= "insert into ".$mysql_table_prefix."link_keyword$char (link_id, keyword_id, weight, domain) values $vals;".chr(10);
+
+//					echo "<br>".$char."-".$j."=="."insert into ".$mysql_table_prefix."link_keyword$char (link_id, keyword_id, weight, domain) values $vals;".chr(10)."<hr>";
+
+					$j=1;
+					$vals="";
+
+				}
+				else
+				{
+					if ($j==1)
+					{
+//						$vals.=$vl."),";					
+					}
+					else
+					{
+//						$vals.="(".$vl."),";					
+					}
+					$vals.="(".$vl."),";					
+					$j++;
+				}
+			
+			}
+//			echo $vals;
+//			$query = "insert into ".$mysql_table_prefix."link_keyword$char (link_id, keyword_id, weight, domain) values $values";
+//			echo $query."<hr>";
+//			echo $char."-".$j."==".$query."<hr>";
+			$mysqli_conn->multi_query($query);
+			while ($mysqli_conn->more_results() && $mysqli_conn->next_result());
+//			$mysqli_conn->store_result(); 
+			echo $mysqli_conn->error;
 		}
 		
 	
@@ -522,6 +595,7 @@ function get_head_data($file) {
 	preg_match("@<head[^>]*>(.*?)<\/head>@si",$file, $regs);	
 	
 	$headdata = $regs[1];
+	$charset="";
 
 	$description = "";
 	$robots = "";
@@ -543,6 +617,13 @@ function get_head_data($file) {
 		if (isset ($res)) {
 			$keywords = $res[1];
 		}
+		preg_match("/<meta +http-equiv *=[\"']?Content-Type[\"']? *content=[\"']?([^<>'\"]+)[\"']?/i", $headdata, $res);
+		if (isset ($res)) {
+			$charset = explode("charset=",$res[1]);
+			$charset = $charset[1];
+		}
+
+
         // e.g. <base href="http://www.consil.co.uk/index.php" />
 		preg_match("/<base +href *= *[\"']?([^<>'\"]+)[\"']?/i", $headdata, $res);
 		if (isset ($res)) {
@@ -564,23 +645,31 @@ function get_head_data($file) {
 		$data['keywords'] = addslashes($keywords);
 		$data['nofollow'] = $nofollow;
 		$data['noindex'] = $noindex;
+		$data['charset'] = $charset;
 		$data['base'] = $base;
 	}
 	return $data;
 }
 
 function clean_file($file, $url, $type) {
-	global $entities, $index_host, $index_meta_keywords;
+	global $mysqli_conn, $entities, $index_host, $index_meta_keywords;
 
 	$urlparts = parse_url($url);
 	$host = $urlparts['host'];
 	//remove filename from path
 	$path = preg_replace('/([^\/]+)$/i', "", $urlparts['path']);
-	$file = preg_replace("/<link rel[^<>]*>/i", " ", $file);
+
 	$file = preg_replace("@<!--sphider_noindex-->.*?<!--\/sphider_noindex-->@si", " ",$file);	
 	$file = preg_replace("@<!--.*?-->@si", " ",$file);	
 	$file = preg_replace("@<script[^>]*?>.*?</script>@si", " ",$file);
 	$headdata = get_head_data($file);
+
+	//if we have no charset for page we use utf-8 by default
+	if (trim($headdata['charset'])=="")
+	{
+		$headdata['charset']="utf-8";
+	}
+
 	$regs = Array ();
 	if (preg_match("@<title *>(.*?)<\/title*>@si", $file, $regs)) {
 		$title = trim($regs[1]);
@@ -590,14 +679,18 @@ function clean_file($file, $url, $type) {
 	}
 
 	$file = preg_replace("@<style[^>]*>.*?<\/style>@si", " ", $file);
+	
 
 	//create spaces between tags, so that removing tags doesnt concatenate strings
-	$file = preg_replace("/<[\w ]+>/", "\\0 ", $file);
+	$file = preg_replace("/<[\w ]+>/", "\\0 ", $file); //\\0
 	$file = preg_replace("/<\/[\w ]+>/", "\\0 ", $file);
 	$file = strip_tags($file);
 	$file = preg_replace("/&nbsp;/", " ", $file);
+	$file = preg_replace("/&amp;/", " ", $file);
+
 
 	$fulltext = $file;
+
 	$file .= " ".$title;
 	if ($index_host == 1) {
 		$file = $file." ".$host." ".$path;
@@ -606,18 +699,47 @@ function clean_file($file, $url, $type) {
 		$file = $file." ".$headdata['keywords'];
 	}
 	
-	
 	//replace codes with ascii chars
 	$file = preg_replace('~&#x([0-9a-f]+);~ei', 'chr(hexdec("\\1"))', $file);
-    $file = preg_replace('~&#([0-9]+);~e', 'chr("\\1")', $file);
-	$file = strtolower($file);
+	$file = preg_replace('~&#([0-9]+);~e', 'chr("\\1")', $file);	
+
+	$file = mb_strtolower($file,$headdata['charset']);
+
 	reset($entities);
 	while ($char = each($entities)) {
 		$file = preg_replace("/".$char[0]."/i", $char[1], $file);
 	}
+
+
 	$file = preg_replace("/&[a-z]{1,6};/", " ", $file);
-	$file = preg_replace("/[\*\^\+\?\\\.\[\]\^\$\|\{\)\(\}~!\"\/@#£$%&=`´;><:,]+/", " ", $file);
-	$file = preg_replace("/\s+/", " ", $file);
+
+
+	$file = preg_replace("/[\[\*\^\+\?\\\.\[\]\^\$\|\{\)\(\}~!\"\/@#$%&=;><:,=]+/", " ", $file);
+	//$file = preg_replace("/[\*\^\+\?\\\.\[\]\^\$\|\{\)\(\}~!\"\/@#?$%&=`?-;><:,]+/", " ", $file);
+
+	mb_internal_encoding($headdata['charset']);
+
+
+	$file = preg_replace("/\n/", " ", $file);
+	$file = preg_replace("/\t/", " ", $file);
+//	$file = preg_replace("/\w+/", " ", $file);
+	
+	//we must convert page to utf-8 to prevent any bugs when works with multilang sites
+	if ($headdata['charset']!="utf-8") 
+	{
+		$file=iconv($headdata['charset'],'utf-8',$file);
+		$fulltext=iconv($headdata['charset'],'utf-8',$fulltext);
+		$title=iconv($headdata['charset'],'utf-8',$title);
+		$description=iconv($headdata['charset'],'utf-8',$description);
+		$keywords=iconv($headdata['charset'],'utf-8',$keywords);
+	}
+//echo $file;
+
+	//couse some problems with russian we need to replace letter '¨' and '¸' with 'Å' and 'å'
+	$file = preg_replace("/Ð/", "Ð•", $file);
+	$file = preg_replace("/Ñ‘/", "Ðµ", $file);
+
+
 	$data['fulltext'] = addslashes($fulltext);
 	$data['content'] = addslashes($file);
 	$data['title'] = addslashes($title);
@@ -628,13 +750,14 @@ function clean_file($file, $url, $type) {
 	$data['nofollow'] = $headdata['nofollow'];
 	$data['noindex'] = $headdata['noindex'];
 	$data['base'] = $headdata['base'];
-
+	$data['charset'] = $headdata['charset'];
+//	print_r($data);
 	return $data;
 
 }
 
 function calc_weights($wordarray, $title, $host, $path, $keywords) {
-	global $index_host, $index_meta_keywords;
+	global $mysqli_conn, $index_host, $index_meta_keywords;
 	$hostarray = unique_array(explode(" ", preg_replace("/[^[:alnum:]-]+/i", " ", strtolower($host))));
 	$patharray = unique_array(explode(" ", preg_replace("/[^[:alnum:]-]+/i", " ", strtolower($path))));
 	$titlearray = unique_array(explode(" ", preg_replace("/[^[:alnum:]-]+/i", " ", strtolower($title))));
@@ -688,10 +811,10 @@ function calc_weights($wordarray, $title, $host, $path, $keywords) {
 }
 
 function isDuplicateMD5($md5sum) {
-	global $mysql_table_prefix;
-	$result = mysql_query("select link_id from ".$mysql_table_prefix."links where md5sum='$md5sum'");
-	echo mysql_error();
-	if (mysql_num_rows($result) > 0) {
+	global $mysqli_conn, $mysql_table_prefix;
+	$result = $mysqli_conn->query("select link_id from ".$mysql_table_prefix."links where md5sum='$md5sum'");
+	echo $mysqli_conn->error;
+	if ($result->num_rows > 0) {
 		return true;
 	}
 	return false;
@@ -748,25 +871,25 @@ function check_include($link, $inc, $not_inc) {
 }
 
 function check_for_removal($url) {
-	global $mysql_table_prefix;
-	global $command_line;
-	$result = mysql_query("select link_id, visible from ".$mysql_table_prefix."links"." where url='$url'");
-	echo mysql_error();
-	if (mysql_num_rows($result) > 0) {
-		$row = mysql_fetch_row($result);
+	global $mysqli_conn, $mysql_table_prefix;
+	global $mysqli_conn, $command_line;
+	$result = $mysqli_conn->query("select link_id, visible from ".$mysql_table_prefix."links"." where url='$url'");
+	echo $mysqli_conn->error;
+	if ($result->num_rows > 0) {
+		$row = $result->fetch_row();
 		$link_id = $row[0];
 		$visible = $row[1];
 		if ($visible > 0) {
 			$visible --;
-			mysql_query("update ".$mysql_table_prefix."links set visible=$visible where link_id=$link_id");
-			echo mysql_error();
+			$mysqli_conn->query("update ".$mysql_table_prefix."links set visible=$visible where link_id=$link_id");
+			echo $mysqli_conn->error;
 		} else {
-			mysql_query("delete from ".$mysql_table_prefix."links where link_id=$link_id");
-			echo mysql_error();
+			$mysqli_conn->query("delete from ".$mysql_table_prefix."links where link_id=$link_id");
+			echo $mysqli_conn->error;
 			for ($i=0;$i<=15; $i++) {
 				$char = dechex($i);
-				mysql_query("delete from ".$mysql_table_prefix."link_keyword$char where link_id=$link_id");
-				echo mysql_error();
+				$mysqli_conn->query("delete from ".$mysql_table_prefix."link_keyword$char where link_id=$link_id");
+				echo $mysqli_conn->error;
 			}
 			printStandardReport('pageRemoved',$command_line);
 		}
@@ -780,7 +903,7 @@ function convert_url($url) {
 }
 
 function extract_text($contents, $source_type) {
-	global $tmp_dir, $pdftotext_path, $catdoc_path, $xls2csv_path, $catppt_path;
+	global $mysqli_conn, $tmp_dir, $pdftotext_path, $catdoc_path, $xls2csv_path, $catppt_path;
 
 	$temp_file = "tmp_file";
 	$filename = $tmp_dir."/".$temp_file ;
@@ -814,7 +937,7 @@ function extract_text($contents, $source_type) {
 
 //function to calculate the weight of pages
 function calc_weight ($words_in_page, $word_in_title, $word_in_domain, $word_in_path, $path_depth, $meta_keyword) {
-	global $title_weight, $domain_weight, $path_weight,$meta_weight;
+	global $mysqli_conn, $title_weight, $domain_weight, $path_weight,$meta_weight;
 	$weight = ($words_in_page + $word_in_title * $title_weight +
 			  $word_in_domain * $domain_weight +
 			  $word_in_path * $path_weight + $meta_keyword * $meta_weight) *10 / (0.8 +0.2*$path_depth);

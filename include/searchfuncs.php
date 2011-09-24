@@ -49,7 +49,7 @@ error_reporting(E_ALL ^ E_NOTICE);
 	}
 
 	function makeboollist($a) {
-		global $entities, $stem_words;
+		global $mysqli_conn, $entities, $stem_words;
 		while ($char = each($entities)) {
 			$a = preg_replace("/".$char[0]."/i", $char[1], $a);
 		}
@@ -57,6 +57,7 @@ error_reporting(E_ALL ^ E_NOTICE);
 
 		$a = preg_replace("/&quot;/i", "\"", $a);
 		$returnWords = array();
+
 		//get all phrases
 		$regs = Array();
 		while (preg_match("/([-]?)\"([^\"]+)\"/", $a, $regs)) {
@@ -66,12 +67,18 @@ error_reporting(E_ALL ^ E_NOTICE);
 			} else {
 				$returnWords['-s'][] = $regs[2];
 			}
+
 			$a = str_replace($regs[0], "", $a);
+
 		}
-		$a = strtolower(preg_replace("/[ ]+/", " ", $a));
+
+		$a = mb_strtolower(preg_replace("/[ ]+/", " ", $a),"utf-8");
+
 //		$a = remove_accents($a);
 		$a = trim($a);
+
 		$words = explode(' ', $a);
+
 		if ($a=="") {
 			$limit = 0;
 		} else {
@@ -83,16 +90,16 @@ error_reporting(E_ALL ^ E_NOTICE);
 		//get all words (both include and exlude)
 		$includeWords = array();
 		while ($k < $limit) {
-			if (substr($words[$k], 0, 1) == '+') {
-				$includeWords[] = substr($words[$k], 1);
-				if (!ignoreWord(substr($words[$k], 1))) {
-					$returnWords['hilight'][] = substr($words[$k], 1);
+			if (mb_substr($words[$k], 0, 1) == '+') {
+				$includeWords[] = mb_substr($words[$k], 1);
+				if (!ignoreWord(mb_substr($words[$k], 1))) {
+					$returnWords['hilight'][] = mb_substr($words[$k], 1);
 					if ($stem_words == 1) {
-						$returnWords['hilight'][] = stem(substr($words[$k], 1));
+						$returnWords['hilight'][] = stem(mb_substr($words[$k], 1));
 					}
 				}
-			} else if (substr($words[$k], 0, 1) == '-') {
-				$returnWords['-'][] = substr($words[$k], 1);
+			} else if (mb_substr($words[$k], 0, 1) == '-') {
+				$returnWords['-'][] = mb_substr($words[$k], 1);
 			} else {
 				$includeWords[] = $words[$k];
 				if (!ignoreWord($words[$k])) {
@@ -107,7 +114,7 @@ error_reporting(E_ALL ^ E_NOTICE);
 		//add words from phrases to includes
 		if (isset($returnWords['+s'])) {
 			foreach ($returnWords['+s'] as $phrase) {
-				$phrase = strtolower(preg_replace("/[ ]+/", " ", $phrase));
+				$phrase = mb_strtolower(preg_replace("/[ ]+/", " ", $phrase),"utf-8");
 				$phrase = trim($phrase);
 				$temparr = explode(' ', $phrase);
 				foreach ($temparr as $w)
@@ -125,21 +132,21 @@ error_reporting(E_ALL ^ E_NOTICE);
 				}	
 			}
 
-		}
+		}		
 		return $returnWords;
 
 	}
 
 	function ignoreword($word) {
-		global $common;
-		global $min_word_length;
-		global $index_numbers;
+		global $mysqli_conn, $common;
+		global $mysqli_conn, $min_word_length;
+		global $mysqli_conn, $index_numbers;
 		if ($index_numbers == 1) {
 			$pattern = "[a-z0-9]+";
 		} else {
 			$pattern = "[a-z]+";
 		}
-		if (strlen($word) < $min_word_length || (!preg_match("/".$pattern."/i", remove_accents($word))) || ($common[$word] == 1)) {
+		if (mb_strlen($word) < $min_word_length || (!preg_match("/".$pattern."/i", remove_accents($word))) || ($common[$word] == 1)) {
 			return 1;
 		} else {
 			return 0;
@@ -147,11 +154,15 @@ error_reporting(E_ALL ^ E_NOTICE);
 	}
 
 	function search($searchstr, $category, $start, $per_page, $type, $domain) {
-		global $length_of_link_desc,$mysql_table_prefix, $show_meta_description, $merge_site_results, $stem_words, $did_you_mean_enabled ;
+		global $mysqli_conn, $length_of_link_desc,$mysql_table_prefix, $show_meta_description, $merge_site_results, $stem_words, $did_you_mean_enabled ;
 		
+//		echo $searchstr['+'][0]."===".md5($searchstr['+'][0])."<br>";
+//		print_r($searchstr);
+
 		$possible_to_find = 1;
-		$result = mysql_query("select domain_id from ".$mysql_table_prefix."domains where domain = '$domain'");
-		if (mysql_num_rows($result)> 0) {
+
+		$result = $mysqli_conn->query("select domain_id from ".$mysql_table_prefix."domains where domain = '$domain'");
+		if ($result->num_rows> 0) {
 			$thisrow = mysql_fetch_array($result);
 			$domain_qry = "and domain = ".$thisrow[0];
 		} else {
@@ -171,13 +182,12 @@ error_reporting(E_ALL ^ E_NOTICE);
 			} else {
 				$searchword = addslashes($wordarray[$not_words]);
 			}
-			$wordmd5 = substr(md5($searchword), 0, 1);
+			$wordmd5 = mb_substr(md5($searchword), 0, 1);
 
             $query1 = "SELECT link_id from ".$mysql_table_prefix."link_keyword$wordmd5, ".$mysql_table_prefix."keywords where ".$mysql_table_prefix."link_keyword$wordmd5.keyword_id= ".$mysql_table_prefix."keywords.keyword_id and keyword='$searchword'";
+			$result = $mysqli_conn->query($query1);
 
-			$result = mysql_query($query1);
-
-			while ($row = mysql_fetch_row($result)) {	
+			while ($row = $result->fetch_row()) {	
 				$notlist[$not_words]['id'][$row[0]] = 1;
 			}
 			$not_words++;
@@ -191,14 +201,16 @@ error_reporting(E_ALL ^ E_NOTICE);
 
 			$searchword = addslashes($wordarray[$phrase_words]);
 			$query1 = "SELECT link_id from ".$mysql_table_prefix."links where fulltxt like '% $searchword%'";
+
+
 			echo mysql_error();
-			$result = mysql_query($query1);
-			$num_rows = mysql_num_rows($result);
+			$result = $mysqli_conn->query($query1);
+			$num_rows = $result->num_rows;
 			if ($num_rows == 0) {
 				$possible_to_find = 0;
 				break;
 			}
-			while ($row = mysql_fetch_row($result)) {	
+			while ($row = $result->fetch_row()) {	
 				$phraselist[$phrase_words]['id'][$row[0]] = 1;
 			}
 			$phrase_words++;
@@ -209,13 +221,15 @@ error_reporting(E_ALL ^ E_NOTICE);
 			$allcats = get_cats($category);
 			$catlist = implode(",", $allcats);
 			$query1 = "select link_id from ".$mysql_table_prefix."links, ".$mysql_table_prefix."sites, ".$mysql_table_prefix."categories, ".$mysql_table_prefix."site_category where ".$mysql_table_prefix."links.site_id = ".$mysql_table_prefix."sites.site_id and ".$mysql_table_prefix."sites.site_id = ".$mysql_table_prefix."site_category.site_id and ".$mysql_table_prefix."site_category.category_id in ($catlist)";
-			$result = mysql_query($query1);
+
+
+			$result = $mysqli_conn->query($query1);
 			echo mysql_error();
-			$num_rows = mysql_num_rows($result);
+			$num_rows = $result->num_rows;
 			if ($num_rows == 0) {
 				$possible_to_find = 0;
 			}
-			while ($row = mysql_fetch_row($result)) {	
+			while ($row = $result->fetch_row()) {	
 				$category_list[$row[0]] = 1;
 			}
 		}
@@ -231,11 +245,25 @@ error_reporting(E_ALL ^ E_NOTICE);
 			} else {
 				$searchword = addslashes($wordarray[$words]);
 			}
-			$wordmd5 = substr(md5($searchword), 0, 1);
+		
+			$wordmd5 = mb_substr(md5($searchword), 0, 1);
+
+//			echo $searchword."=".mb_detect_encoding($searchword)."-".md5($searchword)."-"."-".md5(utf8_encode($searchword))."-".mb_substr(md5(utf8_encode($searchword)), 0, 1)."<br>";
+
 			$query1 = "SELECT distinct link_id, weight, domain from ".$mysql_table_prefix."link_keyword$wordmd5, ".$mysql_table_prefix."keywords where ".$mysql_table_prefix."link_keyword$wordmd5.keyword_id= ".$mysql_table_prefix."keywords.keyword_id and keyword='$searchword' $domain_qry order by weight desc";
+
+//            echo $query1."<br>";
+
+//$mysqli_conn->query("SET NAMES 'utf8'");
+
+
 			echo mysql_error();
-			$result = mysql_query($query1);
-			$num_rows = mysql_num_rows($result);
+			$result = $mysqli_conn->query($query1);
+			
+
+			$num_rows = $result->num_rows;
+//echo $num_rows;
+
 			if ($num_rows == 0) {
 				if ($type != "or") {
 					$possible_to_find = 0;
@@ -248,7 +276,8 @@ error_reporting(E_ALL ^ E_NOTICE);
 				$indx = $words;
 			}
 
-			while ($row = mysql_fetch_row($result)) {	
+			while ($row = $result->fetch_row()) {	
+
 				$linklist[$indx]['id'][] = $row[0];
 				$domains[$row[0]] = $row[2];
 				$linklist[$indx]['weight'][$row[0]] = $row[1];
@@ -326,10 +355,10 @@ error_reporting(E_ALL ^ E_NOTICE);
 			reset ($searchstr['+']);
 			foreach ($searchstr['+'] as $word) {
 				$word = addslashes($word);
-				$result = mysql_query("select keyword from ".$mysql_table_prefix."keywords where soundex(keyword) = soundex('$word')");
+				$result = $mysqli_conn->query("select keyword from ".$mysql_table_prefix."keywords where soundex(keyword) = soundex('$word')");
 				$max_distance = 100;
 				$near_word ="";
-				while ($row=mysql_fetch_row($result)) {
+				while ($row=$result->fetch_row()) {
 					
 					$distance = levenshtein($row[0], $word);
 					if ($distance < $max_distance && $distance <4) {
@@ -400,11 +429,11 @@ error_reporting(E_ALL ^ E_NOTICE);
 
 		$query1 = "SELECT distinct link_id, url, title, description,  $fulltxt, size FROM ".$mysql_table_prefix."links WHERE link_id in ($inlist)";
 
-		$result = mysql_query($query1);
+		$result = $mysqli_conn->query($query1);
 		echo mysql_error();
 
 		$i = 0;
-		while ($row = mysql_fetch_row($result)) {
+		while ($row = $result->fetch_row()) {
 			$res[$i]['title'] = $row[2];
 			$res[$i]['url'] = $row[1];
 			if ($row[3] != null && $show_meta_description == 1)
@@ -413,8 +442,8 @@ error_reporting(E_ALL ^ E_NOTICE);
 				$res[$i]['fulltxt'] = $row[4];
 			$res[$i]['size'] = $row[5];
 			$res[$i]['weight'] = $result_array[$row[0]];
-			$dom_result = mysql_query("select domain from ".$mysql_table_prefix."domains where domain_id='".$domains[$row[0]]."'");
-			$dom_row = mysql_fetch_row($dom_result);
+			$dom_result = $mysqli_conn->query("select domain from ".$mysql_table_prefix."domains where domain_id='".$domains[$row[0]]."'");
+			$dom_row = $dom_result->fetch_row();
 			$res[$i]['domain'] = $dom_row[0];
 			$i++;
 		}
@@ -434,11 +463,12 @@ error_reporting(E_ALL ^ E_NOTICE);
 	}
 
 function get_search_results($query, $start, $category, $searchtype, $results, $domain) {
-	global $sph_messages, $results_per_page,
+	global $mysqli_conn, $sph_messages, $results_per_page,
 		$links_to_next,
 		$show_query_scores,
 		$mysql_table_prefix,
 		$desc_length;
+
 	if ($results != "") {
 		$results_per_page = $results;
 	}
@@ -450,13 +480,14 @@ function get_search_results($query, $start, $category, $searchtype, $results, $d
 
 	$starttime = getmicrotime();
 	// catch " if only one time entered
-        if (substr_count($query,'"')==1){
+        if (mb_substr_count($query,'"')==1){
            $query=str_replace('"','',$query);
         }   
+
+	/////////////////
 	$words = makeboollist($query);
 	$ignorewords = $words['ignore'];
 
-	
 	$full_result['ignore_words'] = $words['ignore'];
 
 	if ($start==0) 
@@ -465,6 +496,7 @@ function get_search_results($query, $start, $category, $searchtype, $results, $d
 	$query= stripslashes($query);
 
 	$entitiesQuery = htmlspecialchars($query);
+
 	$full_result['ent_query'] = $entitiesQuery;
 
 	$endtime = getmicrotime() - $starttime;
@@ -513,6 +545,8 @@ function get_search_results($query, $start, $category, $searchtype, $results, $d
 	$full_result['to'] = $to;
 	$full_result['total_results'] = $rows;
 
+//	echo $rows;
+
 	if ($rows>0) {
 		$maxweight = $result['maxweight'];
 		$i = 0;
@@ -525,18 +559,17 @@ function get_search_results($query, $start, $category, $searchtype, $results, $d
 			if ($page_size!="") 
 				$page_size = number_format($page_size, 1)."kb";
 			
-			
-			$txtlen = strlen($fulltxt);
+			$txtlen = mb_strlen($fulltxt);
 			if ($txtlen > $desc_length) {
 				$places = array();
 				foreach($words['hilight'] as $word) {
-					$tmp = strtolower($fulltxt);
+					$tmp = mb_strtolower($fulltxt,"utf-8");
 					$found_in = strpos($tmp, $word);
-					$sum = -strlen($word);
+					$sum = -mb_strlen($word);
 					while (!($found_in =='')) {
-						$pos = $found_in+strlen($word);
+						$pos = $found_in+mb_strlen($word);
 						$sum += $pos;  //FIX!!
-						$tmp = substr($tmp, $pos);
+						$tmp = mb_substr($tmp, $pos);
 						$places[] = $sum;
 						$found_in = strpos($tmp, $word);
 
@@ -547,7 +580,7 @@ function get_search_results($query, $start, $category, $searchtype, $results, $d
 				$begin = 0;
 				$end = 0;
 				while(list($id, $place) = each($places)) {
-					while ($places[$id + $x] - $place < $desc_length && $x+$id < count($places) && $place < strlen($fulltxt) -$desc_length) {
+					while ($places[$id + $x] - $place < $desc_length && $x+$id < count($places) && $place < mb_strlen($fulltxt) -$desc_length) {
 						$x++;
 						$begin = $id;
 						$end = $id + $x;
@@ -555,13 +588,13 @@ function get_search_results($query, $start, $category, $searchtype, $results, $d
 				}
 
 				$begin_pos = max(0, $places[$begin] - 30);
-				$fulltxt = substr($fulltxt, $begin_pos, $desc_length);
+				$fulltxt = mb_substr($fulltxt, $begin_pos, $desc_length);
 
 				if ($places[$begin] > 0) {
 					$begin_pos = strpos($fulltxt, " ");
 				}
-				$fulltxt = substr($fulltxt, $begin_pos, $desc_length);
-				$fulltxt = substr($fulltxt, 0, strrpos($fulltxt, " "));
+				$fulltxt = mb_substr($fulltxt, $begin_pos, $desc_length);
+				$fulltxt = mb_substr($fulltxt, 0, mb_strrpos($fulltxt, " "));
 				$fulltxt = $fulltxt;
 			}
 
@@ -570,20 +603,21 @@ function get_search_results($query, $start, $category, $searchtype, $results, $d
 				$title = $sph_messages["Untitled"];
 			$regs = Array();
 
-			if (strlen($title) > 80) {
-				$title = substr($title, 0,76)."...";
+			if (mb_strlen($title) > 80) {
+				$title = mb_substr($title, 0,76)."...";
 			}
+			//print_r($words['hilight']);
 			foreach($words['hilight'] as $change) {
-				while (preg_match("/[^\>](".$change.")[^\<]/i", " ".$title." ", $regs)) {
-					$title = preg_replace("/".$regs[1]."/i", "<b>".$regs[1]."</b>", $title);
+				while (preg_match("/[^\>](".$change.")[^\<]/ui", " ".$title." ", $regs)) {
+					$title = preg_replace("/".$regs[1]."/ui", "<b>".$regs[1]."</b>", $title);
 				}
 
-				while (preg_match("/[^\>](".$change.")[^\<]/i", " ".$fulltxt." ", $regs)) {
-					$fulltxt = preg_replace("/".$regs[1]."/i", "<b>".$regs[1]."</b>", $fulltxt);
+				while (preg_match("/[^\>](".$change.")[^\<]/ui", " ".$fulltxt." ", $regs)) {
+					$fulltxt = preg_replace("/".$regs[1]."/ui", "<b>".$regs[1]."</b>", $fulltxt);
 				}
 				$url2 = $url;
-				while (preg_match("/[^\>](".$change.")[^\<]/i", $url2, $regs)) {
-					$url2 = preg_replace("/".$regs[1]."/i", "<b>".$regs[1]."</b>", $url2);
+				while (preg_match("/[^\>](".$change.")[^\<]/ui", $url2, $regs)) {
+					$url2 = preg_replace("/".$regs[1]."/ui", "<b>".$regs[1]."</b>", $url2);
 				}
 			}
 
@@ -625,6 +659,7 @@ function get_search_results($query, $start, $category, $searchtype, $results, $d
 
 	}
 
+//print_r($full_result);
 	return $full_result;
 
 }

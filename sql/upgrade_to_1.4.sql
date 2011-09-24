@@ -1,0 +1,1 @@
+ALTER TABLE  `sites` ADD  `codepage` VARCHAR( 40 ) NOT NULL

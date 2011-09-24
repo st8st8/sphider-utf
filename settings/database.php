@@ -6,14 +6,23 @@
 	$mysql_table_prefix = "";
 
 
+//	error_reporting (E_ALL);
 
-	$success = mysql_pconnect ($mysql_host, $mysql_user, $mysql_password);
-	if (!$success)
-		die ("<b>Cannot connect to database, check if username, password and host are correct.</b>");
-    $success = mysql_select_db ($database);
-	if (!$success) {
-		print "<b>Cannot choose database, check if database name is correct.";
-		die();
+	
+	function MySQLi_conn()
+	{
+		global $mysql_host, $mysql_user, $mysql_password,$database;
+		$mysqli_conn = new mysqli($mysql_host, $mysql_user, $mysql_password,$database);
+
+		if (mysqli_connect_errno()) {
+		    printf("Connect failed: %s\n", mysqli_connect_error());
+		    die("MySQLi error!");
+		}
+		$mysqli_conn->query("SET NAMES 'utf8'");
+		return $mysqli_conn;
 	}
+
+	$mysqli_conn=MySQLi_conn();
+
 ?>
 

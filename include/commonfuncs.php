@@ -18,11 +18,12 @@
 	* @return array|null massiiv
 	 */
 	function sql_fetch_all($query) {
-		$result = mysql_query($query);
+		global $mysqli_conn;
+		$result = $mysqli_conn->query($query);
 		if($mysql_err = mysql_errno()) {
 			print $query.'<br>'.mysql_error();
 		} else {
-			while($row=mysql_fetch_array($result)) {
+			while($row=$result->fetch_array()) {
 				$data[]=$row;
 			}	
 		}		
@@ -56,10 +57,10 @@
 		global $mysql_table_prefix;
 		$query = "SELECT * FROM ".$mysql_table_prefix."categories WHERE parent_num=$parent";
 		echo mysql_error();
-		$result = mysql_query($query);
+		$result = $mysqli_conn->query($query);
 		$arr[] = $parent;
 		if (mysql_num_rows($result) <> '') {
-			while ($row = mysql_fetch_array($result)) {
+			while ($row = $result->fetch_array()) {
 				$id = $row[category_id];
 				$arr = add_arrays($arr, get_cats($id));
 			}
