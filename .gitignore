@@ -1,2 +1,3 @@
 log/*.html
 settings/credentials.php
+settings/local-conf.php

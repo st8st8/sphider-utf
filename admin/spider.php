@@ -9,6 +9,8 @@
 ********************************************/
         $debug = 1;
 	set_time_limit (0);
+    ini_set("display_errors", "On");
+    error_reporting(E_ALL);
 	$include_dir = "../include";
 	include "auth.php";
 	require_once ("$include_dir/commonfuncs.php");

@@ -1,5 +1,5 @@
 <?php 
-include "auth.php";
+include_once "auth.php";
 if ($_index_numbers=="") {
 	$_index_numbers=0;
 } 
@@ -230,7 +230,6 @@ if (isset($Submit)) {
 	}
 		//header("location: admin.php");		
 } 	
-include "../settings/conf.php"; 
 ?>
 <div id='submenu'>&nbsp;</div>
 <div id="settings">

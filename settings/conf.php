@@ -176,4 +176,7 @@ $domain_weight = 60;
 $path_weight	= 10;
 
 // Relative weight of a word in meta_keywords
-$meta_weight	= 5;?>
+$meta_weight	= 5;
+
+require "local-conf.php";
+?>
