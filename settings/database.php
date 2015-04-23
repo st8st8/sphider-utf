@@ -1,9 +1,5 @@
 <?php
-	$database="sphider";
-	$mysql_user = "root";
-	$mysql_password = ""; 
-	$mysql_host = "localhost";
-	$mysql_table_prefix = "";
+require "credentials.php";
 
 
 //	error_reporting (E_ALL);

@@ -13,7 +13,7 @@ $settings_dir = "../settings";
 include "$settings_dir/database.php";
 
 $error = 0;
-mysql_query("create table `".$mysql_table_prefix."sites`(
+$mysqli_conn->query("create table `".$mysql_table_prefix."sites`(
 	site_id int auto_increment not null primary key,
 	url varchar(255),
 	title varchar(255),
@@ -22,14 +22,15 @@ mysql_query("create table `".$mysql_table_prefix."sites`(
 	spider_depth int default 2,
 	required text,
 	disallowed text,
+    `codepage` VARCHAR( 40 ) NOT NULL,
 	can_leave_domain bool)");
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
-mysql_query("create table `".$mysql_table_prefix."links` (
+$mysqli_conn->query("create table `".$mysql_table_prefix."links` (
 	link_id int auto_increment primary key not null,
 	site_id int,
 	url varchar(255) not null,
@@ -44,28 +45,28 @@ mysql_query("create table `".$mysql_table_prefix."links` (
 	visible int default 0, 
 	level int)");
 
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
-mysql_query("create table `".$mysql_table_prefix."keywords`	(
+$mysqli_conn->query("create table `".$mysql_table_prefix."keywords`	(
 	keyword_id int primary key not null auto_increment,
 	keyword varchar(30) not null,
 	unique kw (keyword),
 	key keyword (keyword(10)))");
 
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
 
 for ($i=0;$i<=15; $i++) {
 	$char = dechex($i);
-	mysql_query("create table `".$mysql_table_prefix."link_keyword$char` (
+	$mysqli_conn->query("create table `".$mysql_table_prefix."link_keyword$char` (
 		link_id int not null,
 		keyword_id int not null,
 		weight int(3),
@@ -73,53 +74,53 @@ for ($i=0;$i<=15; $i++) {
 		key linkid(link_id),
 		key keyid(keyword_id))");
 
-	if (mysql_errno() > 0) {
+	if ($mysqli_conn->errno > 0) {
 		print "Error: ";
-		print mysql_error();
+		print $mysqli_conn->error;
 		print "<br>\n";
-		$error += mysql_errno();
+		$error += $mysqli_conn->errno;
 	}
 }
 
-mysql_query("create table `".$mysql_table_prefix."categories` (
+$mysqli_conn->query("create table `".$mysql_table_prefix."categories` (
 	category_id integer not null auto_increment primary key, 
 	category text,
 	parent_num integer
 	)");
 
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
 
-mysql_query("create table `".$mysql_table_prefix."site_category` (
+$mysqli_conn->query("create table `".$mysql_table_prefix."site_category` (
 	site_id integer,
 	category_id integer
 	)");
 
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
 
-mysql_query("create table `".$mysql_table_prefix."temp` (
+$mysqli_conn->query("create table `".$mysql_table_prefix."temp` (
 	link varchar(255),
 	level integer,
 	id varchar (32)
 	)");
 
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
 
-mysql_query("create table `".$mysql_table_prefix."pending` (
+$mysqli_conn->query("create table `".$mysql_table_prefix."pending` (
 	site_id integer,
 	temp_id varchar(32),
 	level integer,
@@ -127,36 +128,36 @@ mysql_query("create table `".$mysql_table_prefix."pending` (
 	num integer
 )");
 
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
 
-mysql_query("create table `".$mysql_table_prefix."query_log` (
+$mysqli_conn->query("create table `".$mysql_table_prefix."query_log` (
 	query varchar(255),
-	time timestamp(14),
+	time timestamp,
 	elapsed float(2),
 	results int, 
 	key query_key(query))");
 
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
 
-mysql_query("create table `".$mysql_table_prefix."domains` (
+$mysqli_conn->query("create table `".$mysql_table_prefix."domains` (
 	domain_id int auto_increment primary key not null,	
 	domain varchar(255))");
 
-if (mysql_errno() > 0) {
+if ($mysqli_conn->errno > 0) {
 	print "Error: ";
-	print mysql_error();
+	print $mysqli_conn->error;
 	print "<br>\n";
-	$error += mysql_errno();
+	$error += $mysqli_conn->errno;
 }
 
 

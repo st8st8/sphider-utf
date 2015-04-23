@@ -32,10 +32,10 @@ Logging settings
 ***********************/
 
 // Should log files be kept
-$keep_log			= 0;
+$keep_log			= 1;
 
 //Log directory, this should be readable and writable
-$log_dir	= 'log';
+$log_dir	= dirname(__FILE__). "/../log";
 
 // Log format
 $log_format			= 'html';
@@ -98,7 +98,7 @@ $user_agent			 = 'Sphider';
 $min_delay			= 0;
 
 // Use word stemming (e.g. find sites containing runs and running when searching for run) 
-$stem_words			= 0;
+$stem_words			= 1;
 
 // Strip session ids (PHPSESSID, JSESSIONID, ASPSESSIONID, sid) 
 $strip_sessids			= 1;

@@ -158,10 +158,11 @@ $database_funcs = Array ("database" => "default");
 				if ($site_id <> '') {
 					$result2 = $mysqli_conn->query("select * from ".$mysql_table_prefix."site_category where site_id=$site_id and category_id=$id");
 					echo mysql_error();
-					$rows = mysql_num_rows($result2);
-
+					$rows = $result2->num_rows;
 					if ($rows > 0)
+                    {
 						$state = "checked";
+                    }
 				}
 
 				print $space . "<input type=checkbox name=cat[$id] $state>" . $cat . "<br/>\n";
@@ -262,7 +263,7 @@ function addcatform($parent) {
 		<tr><td><b>URL:</b></td><td align ="right"></td><td><input type=text name=url size=60 value ="http://"></td></tr>
 		<tr><td><b>Title:</b></td><td></td><td> <input type=text name=title size=60></td></tr>
 		<tr><td><b>Short description:</b></td><td></td><td><textarea name=short_desc cols=45 rows=3 wrap="virtual"></textarea></td></tr>
-	 	<tr><td><b>Site code page:</b></td><td></td><td><input type=text name=codepage value="" size=60></td></tr>
+		<tr><td><b>Site code page:</b></td><td></td><td><input type=text name=codepage value="" size=60></td></tr>
 		<tr><td>Category:</td><td></td><td>
 		<?php  walk_through_cats(0, 0, '');?></td></tr>
 		<tr><td></td><td></td><td><input type=submit id="submit" value=Add></td></tr></form></table></center></div>
@@ -329,9 +330,9 @@ function addcatform($parent) {
 			$result=$mysqli_conn->query("select category_id from ".$mysql_table_prefix."categories");
 			echo mysql_error();
 			print mysql_error();
-			while ($row=$result->fetch_row()) {
-				$cat_id=$row[0];
-				if ($cat[$cat_id]=='on') {
+			while ($row=$result->fetch_assoc()) {
+                $cat_id = $row["category_id"];
+                if ($cat[$cat_id]=='on') {
 					$mysqli_conn->query("INSERT INTO ".$mysql_table_prefix."site_category (site_id, category_id) values ('$site_id', '$cat_id')");
 					echo mysql_error();
 				}

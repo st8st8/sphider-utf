@@ -54,12 +54,12 @@
 	}
 
 	function get_cats($parent) {
-		global $mysql_table_prefix;
+		global $mysql_table_prefix, $mysqli_conn;
 		$query = "SELECT * FROM ".$mysql_table_prefix."categories WHERE parent_num=$parent";
 		echo mysql_error();
 		$result = $mysqli_conn->query($query);
 		$arr[] = $parent;
-		if (mysql_num_rows($result) <> '') {
+		if ($result->num_rows > 0) {
 			while ($row = $result->fetch_array()) {
 				$id = $row[category_id];
 				$arr = add_arrays($arr, get_cats($id));
